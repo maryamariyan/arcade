@@ -20,6 +20,7 @@
 
     <Message Text="Generating manifest for VS component '$(_ComponentName)'" Importance="high"/>
 
+    <Error Text="Induce failure" />
     <Error Condition="'$(VisualStudioDropName)' == '' and '$(OfficialBuild)' == 'true'"
            Text="Property VisualStudioDropName must be specified in official build that produces Visual Studio insertion components." />
 
