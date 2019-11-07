@@ -11,8 +11,7 @@
   -->
   <Target Name="GenerateVisualStudioInsertionManifests"
           AfterTargets="Pack"
-          Outputs="%(_StubDirs.Identity)"
-          Condition="'@(_StubDirs)' != ''">
+          Outputs="%(_StubDirs.Identity)">
     <PropertyGroup>
       <_ComponentDir>%(_StubDirs.Identity)</_ComponentDir>
       <_ComponentName>$(_ComponentDir.TrimEnd('\'))</_ComponentName>
