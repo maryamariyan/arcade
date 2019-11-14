@@ -17,21 +17,21 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
 
         public static string Predict(IssueModel issue, ILogger logger, double threshold)
         {
-            return Predict(issue, ref issuePredEngine, logger, threshold);
+            return Predict(issue, ref issuePredEngine, IssueModelPath, logger, threshold);
         }
 
         public static string Predict(PrModel issue, ILogger logger, double threshold)
         {
-            return Predict(issue, ref prPredEngine, logger, threshold);
+            return Predict(issue, ref prPredEngine, PrModelPath, logger, threshold);
         }
 
-        public static string Predict<T>(T issueOrPr, ref PredictionEngine<T, GitHubIssuePrediction> predEngine, ILogger logger, double threshold) 
+        public static string Predict<T>(T issueOrPr, ref PredictionEngine<T, GitHubIssuePrediction> predEngine, string modelPath, ILogger logger, double threshold) 
             where T : IssueModel
         {
             if (predEngine == null)
             {
                 MLContext mlContext = new MLContext();
-                ITransformer mlModel = mlContext.Model.Load(PrModelPath, out DataViewSchema inputSchema);
+                ITransformer mlModel = mlContext.Model.Load(modelPath, out DataViewSchema inputSchema);
                 predEngine = mlContext.Model.CreatePredictionEngine<T, GitHubIssuePrediction>(mlModel);
             }
 
