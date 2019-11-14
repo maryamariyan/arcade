@@ -41,6 +41,7 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
         {
             return WebHost.CreateDefaultBuilder(args)
                 .UseStartup<Startup>()
+                .UseApplicationInsights()
                 .Build();
         }
     }

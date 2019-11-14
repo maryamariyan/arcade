@@ -4,11 +4,9 @@
 
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc;
 using Microsoft.DotNet.Github.IssueLabeler.Helpers;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 
 namespace Microsoft.DotNet.GitHub.IssueLabeler
 {
@@ -31,17 +29,13 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
                     Configuration["SecretUri"],
                     double.Parse(Configuration["Threshold"]), diffHelper, datasetHelper);
             services.AddMvc();
-            services.AddApplicationInsightsTelemetry();
-
-            var mvcOptions = new MvcOptions();
-            mvcOptions.EnableEndpointRouting = false;
 
             services.AddSingleton(labeler)
             .AddSingleton(datasetHelper)
             .AddSingleton(diffHelper);
         }
 
-        public void Configure(IApplicationBuilder app, IWebHostEnvironment env)
+        public void Configure(IApplicationBuilder app, IHostingEnvironment env)
         {
             if (env.IsDevelopment())
             {
