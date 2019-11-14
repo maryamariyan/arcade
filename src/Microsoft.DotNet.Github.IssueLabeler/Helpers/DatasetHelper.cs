@@ -133,47 +133,44 @@ namespace Microsoft.DotNet.Github.IssueLabeler.Helpers
                 }
             }
 
-            int bodyIndex = dataFrame.Columns.IndexOf("Description");
-            int numMentionsIndex = dataFrame.Columns.IndexOf("NumMentions");
-            int userMentionsIndex = dataFrame.Columns.IndexOf("UserMentions");
-            int filePathsIndex = dataFrame.Columns.IndexOf("FilePaths");
-            int fileCountIndex = dataFrame.Columns.IndexOf("FileCount");
-            int filesIndex = dataFrame.Columns.IndexOf("Files");
-            int filenamesIndex = dataFrame.Columns.IndexOf("Filenames");
-            int fileExtensionsIndex = dataFrame.Columns.IndexOf("FileExtensions");
-            int folderNamesIndex = dataFrame.Columns.IndexOf("FolderNames");
-            int foldersIndex = dataFrame.Columns.IndexOf("Folders");
+            var indices = new Dictionary<string, int>();
+            for (int i = 0; i < dataFrame.Columns.Count; i++)
+            {
+                var cols = dataFrame.Columns[i];
+                indices.Add(cols.Name, i);
+            }
+
             string body;
             for (long i = 0; i < dataFrame.RowCount; i++)
             {
                 IList<object> row = dataFrame[i];
 
-                body = dataFrame.Columns[bodyIndex][i].ToString();
-                dataFrame.Columns[bodyIndex][i] = body.Replace('"', '`');
+                body = dataFrame.Columns[indices["Description"]][i].ToString();
+                dataFrame.Columns[indices["Description"]][i] = body.Replace('"', '`');
 
                 var userMentions = _regexForUserMentions.Matches(body).Select(x => x.Value).ToArray();
-                dataFrame.Columns[numMentionsIndex][i] = userMentions.Length;
-                dataFrame.Columns[userMentionsIndex][i] = FlattenIntoColumn(userMentions);
+                dataFrame.Columns[indices["NumMentions"]][i] = userMentions.Length;
+                dataFrame.Columns[indices["UserMentions"]][i] = FlattenIntoColumn(userMentions);
                 if (includeFileColumns)
                 {
-                    string[] filePaths = row[filePathsIndex].ToString().Split(';');
+                    string[] filePaths = row[indices["FilePaths"]].ToString().Split(';');
                     int numFilesChanged = filePaths.Length == 1 && string.IsNullOrEmpty(filePaths[0]) ? 0 : filePaths.Length;
                     _diffHelper.ResetTo(filePaths);
-                    dataFrame.Columns[fileCountIndex][i] = numFilesChanged;
-                    dataFrame.Columns[filesIndex][i] = FlattenIntoColumn(filePaths);
-                    dataFrame.Columns[filenamesIndex][i] = FlattenIntoColumn(_diffHelper.Filenames);
-                    dataFrame.Columns[fileExtensionsIndex][i] = FlattenIntoColumn(_diffHelper.Extensions);
-                    dataFrame.Columns[folderNamesIndex][i] = FlattenIntoColumn(_diffHelper.FolderNames);
-                    dataFrame.Columns[foldersIndex][i] = FlattenIntoColumn(_diffHelper.Folders);
+                    dataFrame.Columns[indices["FileCount"]][i] = numFilesChanged;
+                    dataFrame.Columns[indices["Files"]][i] = FlattenIntoColumn(filePaths);
+                    dataFrame.Columns[indices["Filenames"]][i] = FlattenIntoColumn(_diffHelper.Filenames);
+                    dataFrame.Columns[indices["FileExtensions"]][i] = FlattenIntoColumn(_diffHelper.Extensions);
+                    dataFrame.Columns[indices["FolderNames"]][i] = FlattenIntoColumn(_diffHelper.FolderNames);
+                    dataFrame.Columns[indices["Folders"]][i] = FlattenIntoColumn(_diffHelper.Folders);
                 }
                 else
                 {
-                    dataFrame.Columns[fileCountIndex][i] = 0;
-                    dataFrame.Columns[filesIndex][i] = string.Empty;
-                    dataFrame.Columns[filenamesIndex][i] = string.Empty;
-                    dataFrame.Columns[fileExtensionsIndex][i] = string.Empty;
-                    dataFrame.Columns[folderNamesIndex][i] = string.Empty;
-                    dataFrame.Columns[foldersIndex][i] = string.Empty;
+                    dataFrame.Columns[indices["FileCount"]][i] = 0;
+                    dataFrame.Columns[indices["Files"]][i] = string.Empty;
+                    dataFrame.Columns[indices["Filenames"]][i] = string.Empty;
+                    dataFrame.Columns[indices["FileExtensions"]][i] = string.Empty;
+                    dataFrame.Columns[indices["FolderNames"]][i] = string.Empty;
+                    dataFrame.Columns[indices["Folders"]][i] = string.Empty;
                 }
             }
             SaveToFile(dataFrame, output, withHeader: true);
