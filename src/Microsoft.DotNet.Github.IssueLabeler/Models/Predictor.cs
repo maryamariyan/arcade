@@ -38,8 +38,7 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
             GitHubIssuePrediction prediction = predEngine.Predict(issueOrPr);
             float[] probabilities = prediction.Score;
             float maxProbability = probabilities.Max();
-            string typeToPredict = issueOrPr is IssueModel ? "issue" : "PR";
-            logger.LogInformation($"# {maxProbability} {prediction.Area} for {typeToPredict} #{issueOrPr.Number} {issueOrPr.Title}");
+            logger.LogInformation($"# {maxProbability} {prediction.Area} for #{issueOrPr.Number} {issueOrPr.Title}");
             return maxProbability > threshold ? prediction.Area : null;
         }
     }

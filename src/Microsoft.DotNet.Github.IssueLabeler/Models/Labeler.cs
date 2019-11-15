@@ -50,35 +50,20 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
             };
         }
 
-        public async Task PredictAndApplyLabelAsync(int number, string title, string body, GithubObjectType issueOrPr, ILogger logger)
+        public async Task PredictAndApplyLabelAsync(int number, GithubObjectType issueOrPr, ILogger logger)
         {
-            if (_client == null)
-            {
-                await GitSetupAsync();
-            }
-            if (_regex == null)
-            {
-                _regex = new Regex(@"@[a-zA-Z0-9_//-]+");
-            }
-            var userMentions = _regex.Matches(body).Select(x => x.Value).ToArray();
-
-            string label;
-            if (issueOrPr == GithubObjectType.Issue)
-            {
-                IssueModel issue = CreateIssue(number, title, body, userMentions);
-                label = Predictor.Predict(issue, logger, _threshold);
-            }
-            else
-            {
-                PrModel pr = await CreatePullRequest(number, title, body, userMentions);
-                label = Predictor.Predict(pr, logger, _threshold);
-            }
+            string label = await PredictLabelAsync(number, _repoName, issueOrPr, logger);
 
             Issue issueGithubVersion = await _client.Issue.Get(_repoOwner, _repoName, number);
-            if (label != null && issueGithubVersion.Labels.Count == 0)
+            var labelNames = issueGithubVersion.Labels.Where(x => !string.IsNullOrEmpty(x.Name)).Select(x => x.Name);
+            if (label != null && !labelNames.Where(x => x.StartsWith("area-")).Any())
             {
                 var issueUpdate = new IssueUpdate();
                 issueUpdate.AddLabel(label);
+                if (!labelNames.Contains("untriaged") && issueOrPr == GithubObjectType.Issue)
+                {
+                    issueUpdate.AddLabel("untriaged");
+                }
                 issueUpdate.Milestone = issueGithubVersion.Milestone?.Number; // The number of milestone associated with the issue.
 
                 await _client.Issue.Update(_repoOwner, _repoName, number, issueUpdate);
@@ -89,7 +74,35 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
             }
         }
 
-        private static IssueModel CreateIssue(int number, string title, string body, string[] userMentions)
+        internal async Task<string> PredictLabelAsync(int number, string repo, GithubObjectType issueOrPr, ILogger logger)
+        {
+            if (_client == null)
+            {
+                await GitSetupAsync();
+            }
+            if (_regex == null)
+            {
+                _regex = new Regex(@"@[a-zA-Z0-9_//-]+");
+            }
+            var iop = await _client.Issue.Get(_repoOwner, repo, number);
+            var userMentions = _regex.Matches(iop.Body).Select(x => x.Value).ToArray();
+
+            string label;
+            if (issueOrPr == GithubObjectType.Issue)
+            {
+                IssueModel issue = CreateIssue(number, iop.Title, iop.Body, userMentions, iop.User.Login);
+                label = Predictor.Predict(issue, logger, _threshold);
+            }
+            else
+            {
+                PrModel pr = await CreatePullRequest(number, iop.Title, iop.Body, userMentions, iop.User.Login);
+                label = Predictor.Predict(pr, logger, _threshold);
+            }
+
+            return label;
+        }
+
+        private static IssueModel CreateIssue(int number, string title, string body, string[] userMentions, string author)
         {
             return new IssueModel()
             {
@@ -97,12 +110,13 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
                 Title = title,
                 Body = body,
                 IsPR = 0,
+                IssueAuthor = author,
                 UserMentions = string.Join(' ', userMentions),
                 NumMentions = userMentions.Length
             };
         }
 
-        private async Task<PrModel> CreatePullRequest(int number, string title, string body, string[] userMentions)
+        private async Task<PrModel> CreatePullRequest(int number, string title, string body, string[] userMentions, string author)
         {
             var pr = new PrModel()
             {
@@ -110,6 +124,7 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
                 Title = title,
                 Body = body,
                 IsPR = 1,
+                IssueAuthor = author,
                 UserMentions = string.Join(' ', userMentions),
                 NumMentions = userMentions.Length,
             };

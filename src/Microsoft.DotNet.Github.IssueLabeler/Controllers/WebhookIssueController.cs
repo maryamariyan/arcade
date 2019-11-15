@@ -26,13 +26,10 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
             IssueModel issueOrPullRequest = data.Issue ?? data.Pull_Request;
             GithubObjectType issueOrPr = data.Issue == null ? GithubObjectType.PullRequest : GithubObjectType.Issue;
 
-            if (data.Action == "opened" && issueOrPullRequest.Labels.Count == 0)
+            if (data.Action == "opened")
             {
-                string title = issueOrPullRequest.Title;
                 int number = issueOrPullRequest.Number;
-                string body = issueOrPullRequest.Body;
-
-                await Issuelabeler.PredictAndApplyLabelAsync(number, title, body, issueOrPr, Logger);
+                await Issuelabeler.PredictAndApplyLabelAsync(number, issueOrPr, Logger);
                 Logger.LogInformation("! Labeling completed");
             }
             else
