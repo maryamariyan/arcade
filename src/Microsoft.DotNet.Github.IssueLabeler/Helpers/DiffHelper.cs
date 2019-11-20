@@ -47,6 +47,7 @@ namespace Microsoft.DotNet.Github.IssueLabeler.Helpers
         /// folder names taken from parsing the fileDiffs, while keeping track of the number of times such a folder name was repeated
         /// </summary>
         public Dictionary<string, int> FolderNames { get; } = new Dictionary<string, int>();
+        public bool AddDocInfo { get; private set; } = false;
 
         private void SetupFolderParts()
         {
@@ -63,6 +64,12 @@ namespace Microsoft.DotNet.Github.IssueLabeler.Helpers
                 {
                     foreach (var folderNameInPr in folderNamesInPr)
                     {
+                        if (folderNameInPr.Equals("ref") &&
+                            subfolder.StartsWith("src" + Path.DirectorySeparatorChar + "libraries") &&
+                            Path.GetExtension(fileWithDiff).Equals(".cs", StringComparison.OrdinalIgnoreCase))
+                        {
+                            AddDocInfo = true;
+                        }
                         subfolder += folderNameInPr;
                         if (FolderNames.ContainsKey(folderNameInPr))
                         {

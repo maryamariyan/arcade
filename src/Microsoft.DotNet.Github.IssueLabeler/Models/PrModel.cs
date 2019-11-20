@@ -26,5 +26,8 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
 
         [LoadColumn(12)]
         public string Folders;
+
+        [NoColumn]
+        public bool ShouldAddDoc { get; set; } = false;
     }
 }
