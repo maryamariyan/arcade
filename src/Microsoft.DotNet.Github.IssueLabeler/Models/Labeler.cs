@@ -128,9 +128,10 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
                 areaLabel = Predictor.Predict(pr, logger, _threshold);
                 if (pr.ShouldAddDoc)
                 {
-                    labels.Add("documentation");
+                    logger.LogInformation($"! PR number {number} should be a documentation PR.");
                     if (canCommentOnIssue)
                     {
+                        labels.Add("documentation");
                         await _client.Issue.Comment.Create(_repoOwner, _repoName, number, MessageToAddDoc);
                     }
                 }
@@ -177,13 +178,13 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
             if (prFiles.Count != 0)
             {
                 string[] filePaths = prFiles.Select(x => x.FileName).ToArray();
-                _diffHelper.ResetTo(filePaths);
-                pr.Files = _datasetHelper.FlattenIntoColumn(filePaths);
-                pr.Filenames = _datasetHelper.FlattenIntoColumn(_diffHelper.Filenames);
-                pr.FileExtensions = _datasetHelper.FlattenIntoColumn(_diffHelper.Extensions);
-                pr.Folders = _datasetHelper.FlattenIntoColumn(_diffHelper.Folders);
-                pr.FolderNames = _datasetHelper.FlattenIntoColumn(_diffHelper.FolderNames);
-                pr.ShouldAddDoc = _diffHelper.AddDocInfo;
+                var segmentedDiff = _diffHelper.SegmentDiff(filePaths);
+                pr.Files = _datasetHelper.FlattenIntoColumn(segmentedDiff.fileDiffs);
+                pr.Filenames = _datasetHelper.FlattenIntoColumn(segmentedDiff.filenames);
+                pr.FileExtensions = _datasetHelper.FlattenIntoColumn(segmentedDiff.extensions);
+                pr.Folders = _datasetHelper.FlattenIntoColumn(segmentedDiff.folders);
+                pr.FolderNames = _datasetHelper.FlattenIntoColumn(segmentedDiff.folderNames);
+                pr.ShouldAddDoc = segmentedDiff.addDocInfo;
             }
             pr.FileCount = prFiles.Count;
             return pr;

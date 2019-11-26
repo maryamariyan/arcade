@@ -11,51 +11,29 @@ namespace Microsoft.DotNet.Github.IssueLabeler.Helpers
 {
     public class DiffHelper
     {
-        private string[] _fileDiffs;
+        /// <summary>
+        /// name of files taken from fileDiffs
+        /// </summary>
+        public IEnumerable<string> FilenamesOf(string[] fileDiffs) => fileDiffs.Select(fileWithDiff => Path.GetFileNameWithoutExtension(fileWithDiff));
 
         /// <summary>
-        /// resets file diffs for which we compute filenames, extensions, folders, and subfolder parts
+        /// file extensions taken from fileDiffs
         /// </summary>
-        /// <param name="fileDiffs">subset of nested files from a root repository</param>
-        public void ResetTo(string[] fileDiffs)
+        public IEnumerable<string> ExtensionsOf(string[] fileDiffs) => fileDiffs.Select(file => Path.GetExtension(file)).
+                Select(extension => string.IsNullOrEmpty(extension) ? "no_extension" : extension);
+
+        public (string[] fileDiffs, IEnumerable<string> filenames, IEnumerable<string> extensions, Dictionary<string, int> folders, Dictionary<string, int> folderNames, bool addDocInfo) SegmentDiff(string[] fileDiffs)
         {
             if (fileDiffs == null || string.IsNullOrEmpty(string.Join(';', fileDiffs)))
             {
                 throw new ArgumentNullException(nameof(fileDiffs));
             }
-            _fileDiffs = fileDiffs;
-            SetupFolderParts();
-        }
-
-        /// <summary>
-        /// name of files taken from fileDiffs
-        /// </summary>
-        public IEnumerable<string> Filenames => _fileDiffs.Select(fileWithDiff => Path.GetFileNameWithoutExtension(fileWithDiff));
-
-        /// <summary>
-        /// file extensions taken from fileDiffs
-        /// </summary>
-        public IEnumerable<string> Extensions => _fileDiffs.Select(file => Path.GetExtension(file)).
-                Select(extension => string.IsNullOrEmpty(extension) ? "no_extension" : extension);
-
-        /// <summary>
-        /// folders taken from parsing the fileDiffs, while keeping track of the number of nested files in each
-        /// </summary>
-        public Dictionary<string, int> Folders { get; } = new Dictionary<string, int>();
-
-        /// <summary>
-        /// folder names taken from parsing the fileDiffs, while keeping track of the number of times such a folder name was repeated
-        /// </summary>
-        public Dictionary<string, int> FolderNames { get; } = new Dictionary<string, int>();
-        public bool AddDocInfo { get; private set; } = false;
-
-        private void SetupFolderParts()
-        {
-            FolderNames.Clear();
-            Folders.Clear();
+            var folderNames = new Dictionary<string, int>();
+            var folders = new Dictionary<string, int>();
+            bool addDocInfo = false;
             string folderWithDiff, subfolder;
             string[] folderNamesInPr;
-            foreach (var fileWithDiff in _fileDiffs)
+            foreach (var fileWithDiff in fileDiffs)
             {
                 folderWithDiff = Path.GetDirectoryName(fileWithDiff) ?? string.Empty;
                 folderNamesInPr = folderWithDiff.Split(Path.DirectorySeparatorChar);
@@ -68,29 +46,30 @@ namespace Microsoft.DotNet.Github.IssueLabeler.Helpers
                             subfolder.StartsWith("src" + Path.DirectorySeparatorChar + "libraries") &&
                             Path.GetExtension(fileWithDiff).Equals(".cs", StringComparison.OrdinalIgnoreCase))
                         {
-                            AddDocInfo = true;
+                            addDocInfo = true;
                         }
                         subfolder += folderNameInPr;
-                        if (FolderNames.ContainsKey(folderNameInPr))
+                        if (folderNames.ContainsKey(folderNameInPr))
                         {
-                            FolderNames[folderNameInPr] += 1;
+                            folderNames[folderNameInPr] += 1;
                         }
                         else
                         {
-                            FolderNames.Add(folderNameInPr, 1);
+                            folderNames.Add(folderNameInPr, 1);
                         }
-                        if (Folders.ContainsKey(subfolder))
+                        if (folders.ContainsKey(subfolder))
                         {
-                            Folders[subfolder] += 1;
+                            folders[subfolder] += 1;
                         }
                         else
                         {
-                            Folders.Add(subfolder, 1);
+                            folders.Add(subfolder, 1);
                         }
                         subfolder += Path.DirectorySeparatorChar;
                     }
                 }
             }
+            return (fileDiffs, FilenamesOf(fileDiffs), ExtensionsOf(fileDiffs), folders, folderNames, addDocInfo);
         }
     }
 }

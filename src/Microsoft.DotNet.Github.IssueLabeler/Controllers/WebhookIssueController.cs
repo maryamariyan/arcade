@@ -4,6 +4,7 @@
 
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 
@@ -32,21 +33,18 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
             if (data.Action == "opened")
             {
                 areaLabelAddedOrNewlyEmpty = true;
-                var predictedLabels = await Issuelabeler.PredictLabelAsync(number, issueOrPr, Logger, canCommentOnIssue: true);
+                var predictedLabels = await Issuelabeler.PredictLabelAsync(number, issueOrPr, Logger, canCommentOnIssue: false);
                 labels.AddRange(predictedLabels);
             }
             else if (data.Action == "unlabeled" || data.Action == "labeled")
             {
-                if (issueOrPullRequest != null && issueOrPullRequest.Labels != null)
+                if (data.Label != null && !string.IsNullOrEmpty(data.Label.Name))
                 {
-                    foreach (var labelAddedOrRemoved in issueOrPullRequest.Labels)
+                    string labelName = data.Label.Name;
+                    if (labelName.StartsWith("area-"))
                     {
-                        string labelName = labelAddedOrRemoved.Name;
-                        if (!string.IsNullOrEmpty(labelName) && labelName.StartsWith("area-"))
-                        {
-                            Logger.LogInformation($"! Area label {labelName} for {issueOrPr} {issueOrPullRequest.Number} got {data.Action}.");
-                            areaLabelAddedOrNewlyEmpty = true;
-                        }
+                        Logger.LogInformation($"! Area label {labelName} for {issueOrPr} {issueOrPullRequest.Number} got {data.Action}.");
+                        areaLabelAddedOrNewlyEmpty = true;
                     }
                 }
             }
