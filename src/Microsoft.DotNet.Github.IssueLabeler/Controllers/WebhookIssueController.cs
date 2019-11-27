@@ -27,12 +27,14 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
         {
             IssueModel issueOrPullRequest = data.Issue ?? data.Pull_Request;
             GithubObjectType issueOrPr = data.Issue == null ? GithubObjectType.PullRequest : GithubObjectType.Issue;
-            bool areaLabelAddedOrNewlyEmpty = false;
             var labels = new List<string>();
             int number = issueOrPullRequest.Number;
             if (data.Action == "opened")
             {
-                areaLabelAddedOrNewlyEmpty = true;
+                if (issueOrPr == GithubObjectType.Issue)
+                {
+                    labels.Add("untriaged");
+                }
                 var predictedLabels = await Issuelabeler.PredictLabelAsync(number, issueOrPr, Logger, canCommentOnIssue: false);
                 labels.AddRange(predictedLabels);
             }
@@ -44,21 +46,12 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
                     if (labelName.StartsWith("area-"))
                     {
                         Logger.LogInformation($"! Area label {labelName} for {issueOrPr} {issueOrPullRequest.Number} got {data.Action}.");
-                        areaLabelAddedOrNewlyEmpty = true;
                     }
                 }
             }
             else
             {
                 Logger.LogInformation($"! The {issueOrPr} {issueOrPullRequest.Number} was {data.Action}.");
-            }
-
-            if (areaLabelAddedOrNewlyEmpty)
-            {
-                if (issueOrPr == GithubObjectType.Issue)
-                {
-                    labels.Add("untriaged");
-                }
             }
 
             if (labels.Count > 0)
