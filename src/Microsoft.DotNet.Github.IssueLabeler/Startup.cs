@@ -33,6 +33,9 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
             services.AddSingleton(labeler)
             .AddSingleton(datasetHelper)
             .AddSingleton(diffHelper);
+
+            // handle 404 in config -> redirect to error page
+            // add package.json then here use package.json for 404
         }
 
         public void Configure(IApplicationBuilder app, IHostingEnvironment env)
@@ -43,6 +46,7 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
             }
 
             app.UseMvc();
+
         }
     }
 }
