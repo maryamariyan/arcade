@@ -6,7 +6,9 @@ using CommandLine;
 using Microsoft.AspNetCore;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.DotNet.Github.IssueLabeler;
+using Microsoft.DotNet.Github.IssueLabeler.Helpers;
 using System;
+using System.IO;
 
 namespace Microsoft.DotNet.GitHub.IssueLabeler
 {

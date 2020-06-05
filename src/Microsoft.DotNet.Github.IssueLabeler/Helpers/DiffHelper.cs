@@ -9,6 +9,16 @@ using System.Linq;
 
 namespace Microsoft.DotNet.Github.IssueLabeler.Helpers
 {
+    public struct SegmentedDiff
+    {
+        public string[] FileDiffs { get; set; }
+        public IEnumerable<string> Filenames { get; set; }
+        public IEnumerable<string> Extensions { get; set; }
+        public Dictionary<string, int> Folders { get; set; }
+        public Dictionary<string, int> FolderNames { get; set; }
+        public bool AddDocInfo { get; set; }
+        public bool PossiblyExtensionsLabel { get; set; }
+    }
     public class DiffHelper
     {
         /// <summary>
@@ -22,7 +32,7 @@ namespace Microsoft.DotNet.Github.IssueLabeler.Helpers
         public IEnumerable<string> ExtensionsOf(string[] fileDiffs) => fileDiffs.Select(file => Path.GetExtension(file)).
                 Select(extension => string.IsNullOrEmpty(extension) ? "no_extension" : extension);
 
-        public (string[] fileDiffs, IEnumerable<string> filenames, IEnumerable<string> extensions, Dictionary<string, int> folders, Dictionary<string, int> folderNames, bool addDocInfo) SegmentDiff(string[] fileDiffs)
+        public SegmentedDiff SegmentDiff(string[] fileDiffs)
         {
             if (fileDiffs == null || string.IsNullOrEmpty(string.Join(';', fileDiffs)))
             {
@@ -30,7 +40,7 @@ namespace Microsoft.DotNet.Github.IssueLabeler.Helpers
             }
             var folderNames = new Dictionary<string, int>();
             var folders = new Dictionary<string, int>();
-            bool addDocInfo = false;
+            bool addDocInfo = false, possiblyExtensionsLabel = false;
             string folderWithDiff, subfolder;
             string[] folderNamesInPr;
             foreach (var fileWithDiff in fileDiffs)
@@ -47,6 +57,11 @@ namespace Microsoft.DotNet.Github.IssueLabeler.Helpers
                             Path.GetExtension(fileWithDiff).Equals(".cs", StringComparison.OrdinalIgnoreCase))
                         {
                             addDocInfo = true;
+                        }
+                        if (subfolder.StartsWith("src" + Path.DirectorySeparatorChar + "libraries" + Path.DirectorySeparatorChar + "Microsoft.Extensions.") &&
+                            Path.GetExtension(fileWithDiff).Equals(".cs", StringComparison.OrdinalIgnoreCase))
+                        {
+                            possiblyExtensionsLabel = true;
                         }
                         subfolder += folderNameInPr;
                         if (folderNames.ContainsKey(folderNameInPr))
@@ -69,7 +84,16 @@ namespace Microsoft.DotNet.Github.IssueLabeler.Helpers
                     }
                 }
             }
-            return (fileDiffs, FilenamesOf(fileDiffs), ExtensionsOf(fileDiffs), folders, folderNames, addDocInfo);
+            return new SegmentedDiff()
+            {
+                FileDiffs = fileDiffs,
+                Filenames = FilenamesOf(fileDiffs),
+                Extensions = ExtensionsOf(fileDiffs), 
+                Folders = folders,
+                FolderNames = folderNames, 
+                AddDocInfo = addDocInfo, 
+                PossiblyExtensionsLabel = possiblyExtensionsLabel
+            };
         }
     }
 }

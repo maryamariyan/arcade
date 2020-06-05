@@ -120,7 +120,7 @@ namespace Microsoft.DotNet.Github.IssueLabeler.Helpers
         /// <param name="input">path to the reference dataset</param>
         /// <param name="output">the output to store the new dataset</param>
         /// <param name="includeFileColumns">when true, it contains extra columns with file related information</param>
-        public void AddOrRemoveColumnsPriorToTraining(string input, string output, bool skipUnknownAreas = true, bool includeFileColumns = true)
+        public void AddOrRemoveColumnsPriorToTraining(string input, string output, bool skipUnknownAreas = true, bool includeFileColumns = true, bool includeComments = false)
         {
             var lines = File.ReadAllLines(input);
             string curHeader = 
@@ -186,12 +186,13 @@ namespace Microsoft.DotNet.Github.IssueLabeler.Helpers
 
                     area = lineSplitByTab[headerIndices["Area"]].Equals("area-Build", StringComparison.OrdinalIgnoreCase) ? "area-Infrastructure-coreclr" : lineSplitByTab[headerIndices["Area"]];
                     _sb.Append(area)
-                        .Append('\t').Append(lineSplitByTab[headerIndices["Title"]])
-                        .Append('\t').Append(body)
-                        .Append('\t').Append(isPrAsNumber);
-                    _sb.Append('\t').Append(lineSplitByTab[headerIndices["IssueAuthor"]]);
+                        .Append('\t').Append(lineSplitByTab[headerIndices["Title"]]);
 
                     string commentsCombined = CommentsCombined(headerIndices, lineSplitByTab, out string moreMentions);
+
+                    _sb.Append('\t').Append(includeComments ? body + " " + commentsCombined : body)
+                        .Append('\t').Append(isPrAsNumber);
+                    _sb.Append('\t').Append(lineSplitByTab[headerIndices["IssueAuthor"]]);
                     AppendColumnsForUserMentions(body + " " + commentsCombined, moreMentions);
                     //_sb.Append('\t').Append(commentsCombined);
                     if (includeFileColumns)
@@ -376,10 +377,10 @@ namespace Microsoft.DotNet.Github.IssueLabeler.Helpers
                     }
                     var segmentedDiff = _diffHelper.SegmentDiff(filePaths);
                     _sb.Append('\t').Append(FlattenIntoColumn(filePaths))
-                        .Append('\t').Append(FlattenIntoColumn(segmentedDiff.filenames))
-                        .Append('\t').Append(FlattenIntoColumn(segmentedDiff.extensions))
-                        .Append('\t').Append(FlattenIntoColumn(segmentedDiff.folderNames))
-                        .Append('\t').Append(FlattenIntoColumn(segmentedDiff.folders));
+                        .Append('\t').Append(FlattenIntoColumn(segmentedDiff.Filenames))
+                        .Append('\t').Append(FlattenIntoColumn(segmentedDiff.Extensions))
+                        .Append('\t').Append(FlattenIntoColumn(segmentedDiff.FolderNames))
+                        .Append('\t').Append(FlattenIntoColumn(segmentedDiff.Folders));
                 }
                 else
                 {

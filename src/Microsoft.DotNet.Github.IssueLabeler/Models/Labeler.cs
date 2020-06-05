@@ -140,7 +140,7 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
             }
         }
 
-        internal async Task<string> JustPredictLabelAsync(int number, ILogger logger)
+        internal async Task<string> JustPredictLabelAsync(int number, ILogger logger, bool forcefullyUseExtensionsLabel = true)
         {
             if (_client == null)
             {
@@ -157,8 +157,12 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
             string areaLabel = null;
             if (!isPr)
             {
+                // in hanuz deploy nashode, if created before may 7th then is transferred and possibly from Extensions repo
+                // extensions transferred: issueOrPr.CreatedAt.UtcDateTime.ToFileTimeUtc() smaller or equal to: 132332353820000000
+                bool possiblyTransferredFromExtensionsCreatedBeforeMay7th = iop.CreatedAt.UtcDateTime.ToFileTimeUtc() <= 132332353820000000;
+
                 IssueModel issue = CreateIssue(number, iop.Title, iop.Body, userMentions, iop.User.Login);
-                areaLabel = Predictor.Predict(issue, logger, _threshold);
+                areaLabel = Predictor.Predict(issue, logger, _threshold, possiblyTransferredFromExtensionsCreatedBeforeMay7th);
             }
             else
             {
@@ -167,6 +171,14 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
                 if (pr.ShouldAddDoc)
                 {
                     logger.LogInformation($"! PR number {number} should be a documentation PR as it adds lines to a ref *cs file.");
+                }
+                if (pr.PossiblyExtensionsLabel)
+                {
+                    logger.LogInformation($"! PR number {number} has changes in Microsoft.Extensions.");
+                    if (forcefullyUseExtensionsLabel && (areaLabel != null && !areaLabel.StartsWith("area-Microsoft.Extensions")))
+                    {
+                        logger.LogInformation($"! area label would have changed to area-Microsoft.Extensions label and would have skipped using Model prediction. ");
+                    }
                 }
             }
 
@@ -179,7 +191,7 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
         }
 
 
-        internal async Task<List<string>> PredictLabelAsync(int number, GithubObjectType issueOrPr, ILogger logger, bool canCommentOnIssue = false)
+        internal async Task<List<string>> PredictLabelAsync(int number, GithubObjectType issueOrPr, ILogger logger, bool canCommentOnIssue = false, bool forcefullyUseExtensionsLabel = true)
         {
             if (_client == null)
             {
@@ -193,11 +205,16 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
             var userMentions = _regex.Matches(iop.Body).Select(x => x.Value).ToArray();
 
             List<string> labels = new List<string>();
+            bool skipUsingModelPrediction = false;
             string areaLabel = null;
             if (issueOrPr == GithubObjectType.Issue)
             {
+                // in hanuz deploy nashode, if created before may 7th then is transferred and possibly from Extensions repo
+                // extensions transferred: issueOrPr.CreatedAt.UtcDateTime.ToFileTimeUtc() smaller or equal to: 132332353820000000
+                bool possiblyTransferredFromExtensionsCreatedBeforeMay7th = iop.CreatedAt.UtcDateTime.ToFileTimeUtc() <= 132332353820000000;
+
                 IssueModel issue = CreateIssue(number, iop.Title, iop.Body, userMentions, iop.User.Login);
-                areaLabel = Predictor.Predict(issue, logger, _threshold);
+                areaLabel = Predictor.Predict(issue, logger, _threshold, possiblyTransferredFromExtensionsCreatedBeforeMay7th);
             }
             else
             {
@@ -212,13 +229,28 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
                         await _client.Issue.Comment.Create(_repoOwner, _repoName, number, MessageToAddDoc);
                     }
                 }
+                if (pr.PossiblyExtensionsLabel)
+                {
+                    logger.LogInformation($"! PR number {number} has changes in Microsoft.Extensions.");
+                    if (forcefullyUseExtensionsLabel && (areaLabel != null && !areaLabel.StartsWith("area-Microsoft.Extensions")))
+                    {
+                        labels.Add("area-Microsoft.Extensions");
+                        skipUsingModelPrediction = true;
+                        logger.LogInformation($"! area label is changing to Extensions label. ");
+                    }
+                }
                 if (iop.User.Login.Equals("monojenkins"))
                 {
                     labels.Add("mono-mirror");
+                    if (areaLabel != null && !areaLabel.EndsWith("-mono"))
+                    {
+                        skipUsingModelPrediction = true;
+                        logger.LogInformation($"! The Model was not able to assign a proper mono label {issueOrPr} {number} confidently. ");
+                    }
                 }
             }
 
-            if (areaLabel == null)
+            if (areaLabel == null || skipUsingModelPrediction)
             {
                 logger.LogInformation($"! The Model was not able to assign the label to the {issueOrPr} {number} confidently.");
             }
@@ -305,11 +337,11 @@ area-System.ComponentModel : split off System.ComponentModel.Composition (for ME
             {
                 string[] filePaths = prFiles.Select(x => x.FileName).ToArray();
                 var segmentedDiff = _diffHelper.SegmentDiff(filePaths);
-                pr.Files = _datasetHelper.FlattenIntoColumn(segmentedDiff.fileDiffs);
-                pr.Filenames = _datasetHelper.FlattenIntoColumn(segmentedDiff.filenames);
-                pr.FileExtensions = _datasetHelper.FlattenIntoColumn(segmentedDiff.extensions);
-                pr.Folders = _datasetHelper.FlattenIntoColumn(segmentedDiff.folders);
-                pr.FolderNames = _datasetHelper.FlattenIntoColumn(segmentedDiff.folderNames);
+                pr.Files = _datasetHelper.FlattenIntoColumn(segmentedDiff.FileDiffs);
+                pr.Filenames = _datasetHelper.FlattenIntoColumn(segmentedDiff.Filenames);
+                pr.FileExtensions = _datasetHelper.FlattenIntoColumn(segmentedDiff.Extensions);
+                pr.Folders = _datasetHelper.FlattenIntoColumn(segmentedDiff.Folders);
+                pr.FolderNames = _datasetHelper.FlattenIntoColumn(segmentedDiff.FolderNames);
                 try
                 {
                     pr.ShouldAddDoc = await prAddsNewApi(pr.Number);
@@ -317,8 +349,9 @@ area-System.ComponentModel : split off System.ComponentModel.Composition (for ME
                 catch (Exception ex)
                 {
                     logger.LogInformation("! problem with new approach: " + ex.Message);
-                    pr.ShouldAddDoc = segmentedDiff.addDocInfo;
+                    pr.ShouldAddDoc = segmentedDiff.AddDocInfo;
                 }
+                pr.PossiblyExtensionsLabel = segmentedDiff.PossiblyExtensionsLabel;
             }
             pr.FileCount = prFiles.Count;
             return pr;

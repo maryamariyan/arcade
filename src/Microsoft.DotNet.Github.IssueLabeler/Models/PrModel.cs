@@ -29,5 +29,8 @@ namespace Microsoft.DotNet.GitHub.IssueLabeler
 
         [NoColumn]
         public bool ShouldAddDoc { get; set; } = false;
+
+        [NoColumn]
+        public bool PossiblyExtensionsLabel { get; set; } = false;
     }
 }
